@@ -14,6 +14,8 @@
  *  limitations under the License.
  */
 
+#include <stdio.h>
+
 #include "stdint.h"
 
 struct vm_state_s
@@ -119,7 +121,108 @@ uint16_t * get(struct vm_state_s *state, uint16_t A, unsigned char is_B)
 
 void process(struct vm_state_s *state, uint16_t OP, uint16_t *VALB, uint16_t *VALA)
 {
-    
+    switch(OP)
+    {
+        case 0x01: // SET b,a
+            *VALB = *VALA;
+            break;
+        case 0x02: // ADD b,a
+            *VALB += *VALA;
+            state->EX = *VALB < *VALA;
+            break;
+        case 0x03: // SUB b,a
+            *VALB -= *VALA;
+            state->EX = *VALB >= 0 - *VALA;
+            break;
+        case 0x04: // MUL b,a
+            state->EX = ((*VALB * *VALA) >> 16) & 0xFFFF;
+            *VALB *= *VALA;
+            break;
+        case 0x05: // MLI b,a
+            state->EX = ((*(int16_t *)VALB * *(int16_t *)VALA) >> 16) & 0xFFFF;
+            *(int16_t *)VALB *= *(int16_t *)VALA;
+            break;
+        case 0x06: // DIV b,a
+            if(*VALA == 0)
+            {
+                *VALB = 0;
+                break;
+            }
+
+            state->EX = ((*VALB << 16) / *VALA) & 0xFFFF;
+            *VALB /= *VALA;
+            break;
+        case 0x07: // DVI b,a
+            if(*(int16_t *)VALA == 0)
+            {
+                *(int16_t *)VALB = 0;
+                break;
+            }
+
+            state->EX = ((*(int16_t *)VALB << 16) / *(int16_t *)VALA) & 0xFFFF;
+            *(int16_t *)VALB /= *(int16_t *)VALA;
+            break;
+        case 0x08: // MOD b,a
+            *VALB = (*VALA == 0) ? 0 : *VALB % *VALA;
+            break;
+        case 0x09: // MDI b,a
+            *(int16_t *)VALB = (*(int16_t *)VALA == 0) ? 0
+                             : *(int16_t *)VALB % *(int16_t *)VALA;
+            break;
+        case 0x0A: // AND b,a
+            *VALB &= *VALA;
+            break;
+        case 0x0B: // BOR b,a
+            *VALB |= *VALA;
+            break;
+        case 0x0C: // XOR b,a
+            *VALB ^= *VALA;
+            break;
+        case 0x0D: // SHR b,a
+            state->EX = ((*VALB << 16) >> *VALA) & 0xFFFF;
+            *VALB >>= *VALA;
+            break;
+        case 0x0E: // ASR b,a
+            state->EX = ((*(int16_t *)VALB << 16) >> *VALA) & 0xFFFF;
+            *(int16_t *)VALB >>= *VALA;
+            break;
+        case 0x0F: // SHL b,a
+            state->EX = ((*VALB << *VALA) >> 16) & 0xFFFF;
+            *VALB <<= *VALA;
+            break;
+        // TODO
+        case 0x10: // IFB b,a
+            break;
+        case 0x11: // IFC b,a
+            break;
+        case 0x12: // IFE b,a
+            break;
+        case 0x13: // IFN b,a
+            break;
+        case 0x14: // IFG b,a
+            break;
+        case 0x15: // IFA b,a
+            break;
+        case 0x16: // IFL b,a
+            break;
+        case 0x17: // IFU b,a
+            break;
+        // TODO
+        case 0x1A: // ADX b,a
+            break;
+        case 0x1B: // SBX b,a
+            break;
+        case 0x1E: // STI b,a
+            *VALB = *VALA;
+            ++state->I;
+            ++state->J;
+            break;
+        case 0x1F: // STD b,a
+            *VALB = *VALA;
+            --state->I;
+            --state->J;
+            break;
+    }
 }
 
 void process_special(struct vm_state_s *state, uint16_t B, uint16_t *VALA)
@@ -134,16 +237,33 @@ int main(int argc, char **argv)
     state.SP = 0;
     state.IA = 0;
 
+    // SET [0x2000],4
+    state.mem[0x0000] = 0x97C1; // [100011 11][110 00001]
+    state.mem[0x0001] = 0x2000;
+
+    // ADD [0x2000],1
+    state.mem[0x0002] = 0x7FC2; // [011111 11][110 00010]
+    state.mem[0x0003] = 0x0001;
+    state.mem[0x0004] = 0x2000;
+
     for(;;)
     {
+        fputc('\n', stderr);
+        fprintf(stderr, "PC=0x%.*x\n", 4, state.PC);
+        fprintf(stderr, "[0x2000]=0x%.*x\n", 4, state.mem[0x2000]);
+
         uint16_t word = *get(&state, 0x1F, 0);
         uint16_t OP = word & 0x1F;
         uint16_t B = (word >> 5) & 0x1F;
         uint16_t A = (word >> 10);
 
+        fprintf(stderr, "OP=0x%.*x\n", 2, OP);
+        fprintf(stderr, "B=0x%.*x\n", 2, B);
+        fprintf(stderr, "A=0x%.*x\n", 2, A);
+
         uint16_t *VALA = get(&state, A, 0);
 
-        if(OP == 0x0)
+        if(OP == 0)
         {
             process_special(&state, B, VALA);
             continue;
