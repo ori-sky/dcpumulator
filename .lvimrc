@@ -1,0 +1,5 @@
+set expandtab
+set tabstop=4
+
+let &colorcolumn="81,".join(range(121,999),",")
+highlight ColorColumn ctermbg=235
