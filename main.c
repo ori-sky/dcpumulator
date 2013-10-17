@@ -15,8 +15,7 @@
  */
 
 #include <stdio.h>
-
-#include "stdint.h"
+#include <stdint.h>
 
 struct vm_state_s
 {
