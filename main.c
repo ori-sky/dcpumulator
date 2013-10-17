@@ -34,6 +34,8 @@ struct vm_state_s
     uint16_t IA;
 
     uint16_t mem[0x10000];
+
+    unsigned char skip;
 };
 
 uint16_t literals[] =
@@ -120,6 +122,12 @@ uint16_t * get(struct vm_state_s *state, uint16_t A, unsigned char is_B)
 
 void process(struct vm_state_s *state, uint16_t OP, uint16_t *VALB, uint16_t *VALA)
 {
+    if(state->skip)
+    {
+        if(OP < 0x10 || OP > 0x17) state->skip = 0;
+        return;
+    }
+
     switch(OP)
     {
         case 0x01: // SET b,a
@@ -191,20 +199,28 @@ void process(struct vm_state_s *state, uint16_t OP, uint16_t *VALB, uint16_t *VA
             break;
         // TODO
         case 0x10: // IFB b,a
+            state->skip = !((*VALB & *VALA) != 0);
             break;
         case 0x11: // IFC b,a
+            state->skip = !((*VALB & *VALA) == 0);
             break;
         case 0x12: // IFE b,a
+            state->skip = !(*VALB == *VALA);
             break;
         case 0x13: // IFN b,a
+            state->skip = !(*VALB != *VALA);
             break;
         case 0x14: // IFG b,a
+            state->skip = !(*VALB > *VALA);
             break;
         case 0x15: // IFA b,a
+            state->skip = !(*(int16_t *)VALB > *(int16_t *)VALA);
             break;
         case 0x16: // IFL b,a
+            state->skip = !(*VALB < *VALA);
             break;
         case 0x17: // IFU b,a
+            state->skip = !(*(int16_t *)VALB < *(int16_t *)VALA);
             break;
         // TODO
         case 0x1A: // ADX b,a
@@ -235,15 +251,39 @@ int main(int argc, char **argv)
     state.PC = 0;
     state.SP = 0;
     state.IA = 0;
+    state.skip = 0;
 
-    // SET [0x2000],4
+    // SET [0x2000],0x4
     state.mem[0x0000] = 0x97C1; // [100011 11][110 00001]
     state.mem[0x0001] = 0x2000;
 
-    // ADD [0x2000],1
+    // ADD [0x2000],0x1
     state.mem[0x0002] = 0x7FC2; // [011111 11][110 00010]
     state.mem[0x0003] = 0x0001;
     state.mem[0x0004] = 0x2000;
+
+    // IFE A,A
+    state.mem[0x0005] = 0x0012;
+    // ADD [0x2000],0x3
+    state.mem[0x0006] = 0x7FC2; // [011111 11][110 00010]
+    state.mem[0x0007] = 0x0003;
+    state.mem[0x0008] = 0x2000;
+
+    // IFN A,A
+    state.mem[0x0009] = 0x0013;
+    // ADD [0x2000],0xF
+    state.mem[0x000A] = 0x7FC2; // [011111 11][110 00010]
+    state.mem[0x000B] = 0x000F;
+    state.mem[0x000C] = 0x2000;
+
+    // IFN A,A
+    state.mem[0x000D] = 0x0013;
+    // IFE A,A
+    state.mem[0x000E] = 0x0012;
+    // ADD [0x2000],0xF
+    state.mem[0x000F] = 0x7FC2; // [011111 11][110 00010]
+    state.mem[0x0010] = 0x000F;
+    state.mem[0x0011] = 0x2000;
 
     for(;;)
     {
