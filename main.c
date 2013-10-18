@@ -134,12 +134,12 @@ void process(struct vm_state_s *state, uint16_t OP, uint16_t *VALB, uint16_t *VA
             *VALB = *VALA;
             break;
         case 0x02: // ADD b,a
+            state->EX = ((uint32_t)*VALB + (uint32_t)*VALA > 0xFFFF);
             *VALB += *VALA;
-            state->EX = *VALB < *VALA;
             break;
         case 0x03: // SUB b,a
+            state->EX = ((int32_t)*VALB - (int32_t)*VALB < 0) * 0xFFFF;
             *VALB -= *VALA;
-            state->EX = *VALB >= 0 - *VALA;
             break;
         case 0x04: // MUL b,a
             state->EX = ((*VALB * *VALA) >> 16) & 0xFFFF;
@@ -197,7 +197,6 @@ void process(struct vm_state_s *state, uint16_t OP, uint16_t *VALB, uint16_t *VA
             state->EX = ((*VALB << *VALA) >> 16) & 0xFFFF;
             *VALB <<= *VALA;
             break;
-        // TODO
         case 0x10: // IFB b,a
             state->skip = !((*VALB & *VALA) != 0);
             break;
@@ -222,11 +221,21 @@ void process(struct vm_state_s *state, uint16_t OP, uint16_t *VALB, uint16_t *VA
         case 0x17: // IFU b,a
             state->skip = !(*(int16_t *)VALB < *(int16_t *)VALA);
             break;
-        // TODO
         case 0x1A: // ADX b,a
+        {
+            uint16_t ex = state->EX;
+            state->EX = ((uint32_t)*VALB + (uint32_t)*VALA + ex > 0xFFFF);
+            *VALB = *VALB + *VALA + ex;
             break;
+        }
         case 0x1B: // SBX b,a
+        {
+            uint16_t ex = state->EX;
+            state->EX = ((uint32_t)*VALB - (uint32_t)*VALA + ex > 0xFFFF)
+                      + ((int32_t)*VALB - (int32_t)*VALA + ex < 0) * 0xFFFF;
+            *VALB = *VALB - *VALA + ex;
             break;
+        }
         case 0x1E: // STI b,a
             *VALB = *VALA;
             ++state->I;
