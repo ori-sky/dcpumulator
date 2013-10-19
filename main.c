@@ -14,8 +14,11 @@
  *  limitations under the License.
  */
 
+#define _BSD_SOURCE
+#include <endian.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 struct vm_state_s
 {
@@ -276,6 +279,12 @@ int main(int argc, char **argv)
 
     freopen(NULL, "rb", stdin);
     fread(state.mem, 1, 0x10000, stdin);
+
+    for(uint32_t i=0; i<0x10000; ++i)
+    {
+        // memory is stored in big endian format
+        state.mem[i] = be16toh(state.mem[i]);
+    }
 
     /*
     // SET [0x2000],0x4
