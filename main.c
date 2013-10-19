@@ -251,7 +251,19 @@ void process(struct vm_state_s *state, uint16_t OP, uint16_t *VALB, uint16_t *VA
 
 void process_special(struct vm_state_s *state, uint16_t B, uint16_t *VALA)
 {
-    
+    if(state->skip) return;
+
+    switch(B)
+    {
+        case 0x01: // JSR a
+            /* OP = SET  = 0x01
+             * B  = PUSH = 0x18
+             * A  = PC   = 0x1B
+             */
+            process(state, 0x01, get(state, 0x18, 1), get(state, 0x1B, 1));
+            state->PC = *VALA;
+            break;
+    }
 }
 
 int main(int argc, char **argv)
@@ -262,6 +274,10 @@ int main(int argc, char **argv)
     state.IA = 0;
     state.skip = 0;
 
+    freopen(NULL, "rb", stdin);
+    fread(state.mem, 1, 0x10000, stdin);
+
+    /*
     // SET [0x2000],0x4
     state.mem[0x0000] = 0x97C1; // [100011 11][110 00001]
     state.mem[0x0001] = 0x2000;
@@ -293,6 +309,7 @@ int main(int argc, char **argv)
     state.mem[0x000F] = 0x7FC2; // [011111 11][110 00010]
     state.mem[0x0010] = 0x000F;
     state.mem[0x0011] = 0x2000;
+    */
 
     for(;;)
     {
